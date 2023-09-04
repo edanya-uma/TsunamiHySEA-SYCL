@@ -1,0 +1,3 @@
+GPU/Arista_kernel.o: GPU/Arista_kernel.cxx GPU/Arista_kernel.hxx \
+  Constantes.hxx \
+  /home/marc/intel/oneapi/tbb/2021.9.0/env/../include/tbb/tbb.h

@@ -1,0 +1,3 @@
+GPU/netcdf.o: GPU/netcdf.cxx GPU/netcdf.hxx Constantes.hxx \
+  /home/marc/intel/oneapi/tbb/2021.9.0/env/../include/tbb/tbb.h \
+  GPU/netcdfSeries.hxx

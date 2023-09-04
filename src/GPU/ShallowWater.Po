@@ -1,0 +1,5 @@
+GPU/ShallowWater.o: GPU/ShallowWater.cxx \
+  /home/marc/intel/oneapi/tbb/2021.9.0/env/../include/tbb/tbb.h \
+  GPU/stopwatch.hxx GPU/Volumen_kernel.hxx Constantes.hxx \
+  GPU/Arista_kernel.hxx GPU/Deformacion.hxx GPU/netcdf.hxx \
+  GPU/netcdfSeries.hxx

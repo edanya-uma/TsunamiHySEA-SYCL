@@ -1,0 +1,3 @@
+GPU/Deformacion.o: GPU/Deformacion.cxx GPU/Deformacion.hxx \
+  /home/marc/intel/oneapi/tbb/2021.9.0/env/../include/tbb/tbb.h \
+  Constantes.hxx GPU/prtoxy.hxx GPU/DC3D.hxx
