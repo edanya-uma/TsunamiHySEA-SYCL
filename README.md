@@ -1,4 +1,4 @@
-# TsunamiHySEA 1.1.1 SYCL version
+# Tsunami-HySEA 1.2 SYCL version
 
 ## Introduction
 

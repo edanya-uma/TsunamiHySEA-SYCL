@@ -19,19 +19,6 @@ void filtroEstado( sycl::double2 *acum1, sycl::double2 *acum2, double vmax,
                    double delta_T, double epsilon_h );
 
 SYCL_EXTERNAL
-void inicializarEta1MaximaNivel0GPU(sycl::double2 *d_datosVolumenes_1,
-                                    double *d_eta1_maxima, int num_volx,
-                                    int num_voly, double epsilon_h,
-                                    sycl::nd_item<2> item );
-
-SYCL_EXTERNAL
-void actualizarEta1MaximaNivel0GPU(sycl::double2 *d_datosVolumenes_1,
-                                   double *d_eta1_maxima, int num_volx,
-                                   int num_voly, double tiempo_act,
-                                   double epsilon_h,
-                                   sycl::nd_item<2> item );
-
-SYCL_EXTERNAL
 void obtenerDeltaTVolumenesGPU(sycl::double2 *d_datosVolumenesNivel0_3,
                                sycl::double2 *d_acumulador_1,
                                double *d_deltaTVolumenes, int numVolxNivel0,

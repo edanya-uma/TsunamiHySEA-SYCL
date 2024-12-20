@@ -14,24 +14,31 @@ void leerBatimetriaGRD(float *bati);
 void leerEtaGRD(float *eta);
 void cerrarGRD();
 
-void crearFicheroNC(double *lon_grid, double *lat_grid, double *lon, double *lat, char *nombre_bati,
-			char *prefijo, int *p_ncid, int *p_time_id, int *p_eta_id, int *p_qx_id, int *p_qy_id,
-			int num_volx, int num_voly, double tiempo_tot, double CFL, double epsilon_h, double mf0,
-			double vmax, double hpos, double cvis, double *bati);
+void escribirDatosCroppingNC(int ncid, int crop_flag, double crop_value, double H);
+
+void crearFicheroNC(double *lon_grid, double *lat_grid, double *lon, double *lat, char *nombre_bati, int okada_flag,
+			char *prefijo, int *p_ncid, int *p_time_id, int *p_eta_id, int *p_ux_id, int *p_uy_id, int num_volx,
+			int num_voly, double tiempo_tot, double CFL, double epsilon_h, double mf0, double vmax, double hpos,
+			double cvis, double dif_at, double borde_sup, double borde_inf, double borde_izq, double borde_der,
+			int numFaults, double *defTime, double *LON_C, double *LAT_C, double *DEPTH_C, double *FAULT_L,
+			double *FAULT_W, double *STRIKE, double *DIP, double *RAKE, double *SLIP, int crop_flag,
+			double crop_value, double H, float *bati, char *version);
 
 int crearFicherosNC(char *nombre_bati, int okada_flag, char *prefijo, int num_volx, int num_voly, double *lon_grid,
-			double *lat_grid, double tiempo_tot, double CFL, double epsilon_h, double mf0, double vmax,
-			double hpos, double cvis, double borde_sup, double borde_inf, double borde_izq, double borde_der,
-			double LON_C, double LAT_C, double DEPTH_C, double FAULT_L, double FAULT_W, double STRIKE,
-			double DIP, double RAKE, double SLIP, float *bati);
+			double *lat_grid, double tiempo_tot, double CFL, double epsilon_h, double mf0, double vmax, double hpos,
+			double cvis, double dif_at, double borde_sup, double borde_inf, double borde_izq, double borde_der,
+			int numFaults, double *defTime, double *LON_C, double *LAT_C, double *DEPTH_C, double *FAULT_L,
+			double *FAULT_W, double *STRIKE, double *DIP, double *RAKE, double *SLIP, int crop_flag,
+			double crop_value, double H, float *bati, char *version);
 
 void escribirTiempoNC(int num, float tiempo_act);
 void escribirEtaNC(int num_volx, int num_voly, int num, float *eta);
 void escribirUxNC(int num_volx, int num_voly, int num, float *ux);
 void escribirUyNC(int num_volx, int num_voly, int num, float *uy);
 void guardarBatimetriaModificadaNC(float *vec);
-void cerrarFicheroNC(float *eta_max);
-
+void guardarEta1MaximaNC(float *vec);
+void guardarTiemposLlegadaNC(float *vec);
+void cerrarFicheroNC();
 
 #endif
 

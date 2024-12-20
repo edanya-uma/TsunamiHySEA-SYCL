@@ -11,12 +11,16 @@ using size_t = std::size_t;
 
 constexpr double EPSILON               { std::numeric_limits<double>::epsilon()*10 };
 constexpr double EARTH_RADIUS          { 6378136.6 };
+constexpr int    MAX_FAULTS            { 5000 };
 constexpr size_t SPONGE_SIZE           { 4 };
 constexpr double SEA_LEVEL             { 0.0 };
 constexpr size_t DEFLATE_LEVEL         { 5 }; 
-constexpr size_t SEA_SURFACE_FROM_FILE { 0 };
-constexpr int    OKADA_STANDARD        { 1 }; 
 
+constexpr int    SEA_SURFACE_FROM_FILE { 0 };
+constexpr int    OKADA_STANDARD        { 1 };
+constexpr int    NO_CROP               { 0 };
+constexpr int    CROP_RELATIVE         { 1 };
+constexpr int    CROP_ABSOLUTE         { 2 };
 
 constexpr double sqrt2        { 1.4142135623730950488016887242096980785696718 };
 

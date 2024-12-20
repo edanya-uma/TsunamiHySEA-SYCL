@@ -13,11 +13,13 @@ extern int lon_ts_id;
 extern int lat_ts_id;
 extern int grid_ts_id_okada;
 
-int initTimeSeriesNC(char *nombre_bati, char *prefijo, int num_points, double *lonPuntos, double *latPuntos,
-		double tiempo_tot, double CFL, double epsilon_h, double mf0, double vmax, double hpos, double cvis,
-		double borde_sup, double borde_inf, double borde_izq, double borde_der, double LON_C, double LAT_C,
-		double DEPTH_C, double FAULT_L, double FAULT_W, double STRIKE, double DIP, double RAKE, double SLIP,
-		int okada_flag);
+void escribirDatosCroppingTimeSeriesNC(int ncid_ts, int crop_flag, double crop_value, double H);
+
+int initTimeSeriesNC(char *nombre_bati, char *prefijo, int num_points, double *lonPuntos, double *latPuntos, double tiempo_tot,
+		double CFL, double epsilon_h, double mf0, double vmax, double hpos, double cvis, double dif_at, double borde_sup,
+		double borde_inf, double borde_izq, double borde_der, int numFaults, double *defTime, double *LON_C, double *LAT_C,
+		double *DEPTH_C, double *FAULT_L, double *FAULT_W, double *STRIKE, double *DIP, double *RAKE, double *SLIP,
+		int okada_flag, int crop_flag, double crop_value, double H, char *version);
 
 void writeStateTimeSeriesNC(int num, float tiempo_act, int num_points, float *eta, float *ux, float *uy);
 

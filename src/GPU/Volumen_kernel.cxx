@@ -1,6 +1,7 @@
 #include "Volumen_kernel.hxx"
 #include "Constantes.hxx"
 #include <sycl/sycl.hpp>
+
 using namespace sycl;
 
 void spongeLayerPaso1(double *h, double dist, double ls, double h0)
@@ -82,53 +83,6 @@ void filtroEstado(double2 *acum1, double2 *acum2, double vmax,
         }
 }
 
-void inicializarEta1MaximaNivel0GPU( double2 *d_datosVolumenes_1,
-                                    double *d_eta1_maxima, int num_volx,
-                                    int num_voly, double epsilon_h,
-                                    nd_item<2> item)
-{
-        double2 W;
-        int pos, pos_x_hebra, pos_y_hebra;
-
-        pos_x_hebra =
-            item.get_group(1) * NUM_HEBRASX_EST + item.get_local_id(1);
-        pos_y_hebra =
-            item.get_group(0) * NUM_HEBRASY_EST + item.get_local_id(0);
-
-        if ((pos_x_hebra < num_volx) && (pos_y_hebra < num_voly)) {
-		pos = pos_y_hebra*num_volx + pos_x_hebra;
-
-		W = d_datosVolumenes_1[pos];
-                d_eta1_maxima[pos] = ((W.x() < epsilon_h) ? -1e30 : W.x() - W.y());
-        }
-}
-
-void actualizarEta1MaximaNivel0GPU( double2 *d_datosVolumenes_1,
-                                   double *d_eta1_maxima, int num_volx,
-                                   int num_voly, double tiempo_act,
-                                   double epsilon_h,
-                                   nd_item<2> item)
-{
-        double2 W;
-        double val, eta1;
-	int pos, pos_x_hebra, pos_y_hebra;
-
-        pos_x_hebra =
-            item.get_group(1) * NUM_HEBRASX_EST + item.get_local_id(1);
-        pos_y_hebra =
-            item.get_group(0) * NUM_HEBRASY_EST + item.get_local_id(0);
-
-        if ((pos_x_hebra < num_volx) && (pos_y_hebra < num_voly)) {
-		pos = pos_y_hebra*num_volx + pos_x_hebra;
-
-		eta1 = d_eta1_maxima[pos];
-		W = d_datosVolumenes_1[pos];
-                val = W.x() - W.y();
-                if ((val > eta1) && (W.x() > epsilon_h))
-                        d_eta1_maxima[pos] = val;
-	}
-}
-
 void obtenerDeltaTVolumenesGPU( double2 *d_datosVolumenesNivel0_3,
                                 double2 *d_acumulador_1,
                                double *d_deltaTVolumenes, int numVolxNivel0,
@@ -160,10 +114,11 @@ void obtenerEstadosPaso1Nivel0GPU(
     int tam_spongeInf, int tam_spongeIzq, int tam_spongeDer, double sea_level,
     nd_item<2> item)
 {
-        double2 W1, acum1;
-        double val, area;
+	double2 W1, acum1;
+	double val, area;
 	double dist, dx, dy;
-	double h0_sponge;
+	double dist_izq, dist_der, dist_sup, dist_inf;
+	double h0_sponge, ls;
 	int pos, pos_x_hebra, pos_y_hebra;
 
         pos_x_hebra =
@@ -183,33 +138,37 @@ void obtenerEstadosPaso1Nivel0GPU(
                 acum1.x() *= (acum1.x() > 0.0);
                 // Start sponge layer
                 h0_sponge = max((double)(W1.y() + Hmin + sea_level), 0.0);
-                if (tam_spongeIzq > 0) {
-			if (pos_x_hebra < tam_spongeIzq) {
+		if ((tam_spongeIzq > 0) || (tam_spongeDer > 0) || (tam_spongeSup > 0) || (tam_spongeInf > 0)) {
+			if ((pos_x_hebra < tam_spongeIzq) || (pos_x_hebra >= num_volx-tam_spongeDer) || (pos_y_hebra < tam_spongeSup) || (pos_y_hebra >= num_voly-tam_spongeInf)) {
 				dx = d_anchoVolumenes[pos_y_hebra];
-				dist = (tam_spongeIzq-pos_x_hebra-0.5)*dx;
-                                spongeLayerPaso1(&(acum1.x()), dist, dx * tam_spongeIzq, h0_sponge);
-                        }
-		}
-		if (tam_spongeDer > 0) {
-			if (pos_x_hebra >= num_volx-tam_spongeDer) {
-				dx = d_anchoVolumenes[pos_y_hebra];
-				dist = (pos_x_hebra-(num_volx-1-tam_spongeDer)-0.5)*dx;
-                                spongeLayerPaso1(&(acum1.x()), dist, dx * tam_spongeDer, h0_sponge);
-                        }
-		}
-		if (tam_spongeSup > 0) {
-			if (pos_y_hebra < tam_spongeSup) {
 				dy = d_altoVolumenes[pos_y_hebra];
-				dist = (tam_spongeSup-pos_y_hebra-0.5)*dy;
-                                spongeLayerPaso1(&(acum1.x()), dist, dy * tam_spongeSup, h0_sponge);
-                        }
-		}
-		if (tam_spongeInf > 0) {
-			if (pos_y_hebra >= num_voly-tam_spongeInf) {
-				dy = d_altoVolumenes[pos_y_hebra];
-				dist = (pos_y_hebra-(num_voly-1-tam_spongeInf)-0.5)*dy;
-                                spongeLayerPaso1(&(acum1.x()), dist, dy * tam_spongeInf, h0_sponge);
-                        }
+				dist_izq = (tam_spongeIzq-pos_x_hebra-0.5)*dx;
+				if (dist_izq <= 0.0)  dist_izq = 1e30;
+				dist_der = (pos_x_hebra-(num_volx-1-tam_spongeDer)-0.5)*dx;
+				if (dist_der <= 0.0)  dist_der = 1e30;
+				dist_sup = (tam_spongeSup-pos_y_hebra-0.5)*dy;
+				if (dist_sup <= 0.0)  dist_sup = 1e30;
+				dist_inf = (pos_y_hebra-(num_voly-1-tam_spongeInf)-0.5)*dy;
+				if (dist_inf <= 0.0)  dist_inf = 1e30;
+
+				if ((dist_izq <= dist_der) && (dist_izq <= dist_sup) && (dist_izq <= dist_inf)) {
+					dist = dist_izq;
+					ls = dx*tam_spongeIzq;
+				}
+				else if ((dist_der <= dist_izq) && (dist_der <= dist_sup) && (dist_der <= dist_inf)) {
+					dist = dist_der;
+					ls = dx*tam_spongeDer;
+				}
+				else if ((dist_sup <= dist_izq) && (dist_sup <= dist_der) && (dist_sup <= dist_inf)) {
+					dist = dist_sup;
+					ls = dy*tam_spongeSup;
+				}
+				else {
+					dist = dist_inf;
+					ls = dy*tam_spongeInf;
+				}
+				spongeLayerPaso1(&(acum1.x()), dist, ls, h0_sponge);
+			}
 		}
 		// End sponge layer
 		d_datosVolumenes_1[pos] = acum1;
@@ -226,8 +185,8 @@ void obtenerEstadoYDeltaTVolumenesNivel0GPU(
     int tam_spongeInf, int tam_spongeIzq, int tam_spongeDer, double sea_level,
     nd_item<2> item)
 {
-        double2 W1, W2, acum1, acum2;
-        double val, area, paso;
+	double2 W1, W2, acum1, acum2;
+	double val, area, paso;
 	double dist, dx, dy;
 	double h0_sponge, v0_sponge;
 	int pos, pos_x_hebra, pos_y_hebra;
@@ -254,46 +213,38 @@ void obtenerEstadoYDeltaTVolumenesNivel0GPU(
                 // Start sponge layer
                 h0_sponge = max((double)(W1.y() + Hmin + sea_level), 0.0);
                 v0_sponge = 0.0;
-		if (tam_spongeIzq > 0) {
+		if ((tam_spongeIzq > 0) || (tam_spongeDer > 0) || (tam_spongeSup > 0) || (tam_spongeInf > 0)) {
+			dx = d_anchoVolumenes[pos_y_hebra];
+			dy = d_altoVolumenes[pos_y_hebra];
 			if (pos_x_hebra < tam_spongeIzq) {
-				dx = d_anchoVolumenes[pos_y_hebra];
 				dist = (tam_spongeIzq-pos_x_hebra-0.5)*dx;
                                 spongeLayerPaso2(&(acum2.x()), dist,
                                                  dx * tam_spongeIzq, h0_sponge,
                                                  v0_sponge);
-                        }
-		}
-		if (tam_spongeDer > 0) {
+            }
 			if (pos_x_hebra >= num_volx-tam_spongeDer) {
-				dx = d_anchoVolumenes[pos_y_hebra];
 				dist = (pos_x_hebra-(num_volx-1-tam_spongeDer)-0.5)*dx;
                                 spongeLayerPaso2(&(acum2.x()), dist,
                                                  dx * tam_spongeDer, h0_sponge,
                                                  v0_sponge);
-                        }
-		}
-		if (tam_spongeSup > 0) {
+            }
 			if (pos_y_hebra < tam_spongeSup) {
-				dy = d_altoVolumenes[pos_y_hebra];
 				dist = (tam_spongeSup-pos_y_hebra-0.5)*dy;
                                 spongeLayerPaso2(&(acum2.y()), dist,
                                                  dy * tam_spongeSup, h0_sponge,
                                                  v0_sponge);
-                        }
-		}
-		if (tam_spongeInf > 0) {
+            }
 			if (pos_y_hebra >= num_voly-tam_spongeInf) {
-				dy = d_altoVolumenes[pos_y_hebra];
 				dist = (pos_y_hebra-(num_voly-1-tam_spongeInf)-0.5)*dy;
                                 spongeLayerPaso2(&(acum2.y()), dist,
                                                  dy * tam_spongeInf, h0_sponge,
                                                  v0_sponge);
-                        }
+            }
 		}
 		// End sponge layer
 
-                if (W1.x() <= hpos) {
-                        filtroEstado(&W1, &acum2, vmax, delta_T, epsilon_h);
+		if (W1.x() <= hpos) {
+			filtroEstado(&W1, &acum2, vmax, delta_T, epsilon_h);
 			disImplicita(W1, W2, &W1, &acum2, delta_T, mf0, epsilon_h);
 		}
 

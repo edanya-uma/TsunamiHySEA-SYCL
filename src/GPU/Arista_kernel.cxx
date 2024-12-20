@@ -105,7 +105,8 @@ void procesarAristaVer_2s_1step(double h0, double h1, double q0x, double longitu
     *Fmas2s = -(*Fmenos2s);
 
     d_acumulador_1[pos_vol0].x() -= *Fmenos2s;
-    d_acumulador_1[pos_vol1].x() += *Fmenos2s;
+    if (pos_vol1 != -1)
+        d_acumulador_1[pos_vol1].x() += *Fmenos2s;
 }
 
 void procesarAristaVer_2s_waf_1step(double h0m, double h0, double h1, double h1p, double q0x, double q1x,
@@ -247,11 +248,13 @@ void procesarAristaVer_2s_2step(TVec3 *W0, TVec3 *W1, double H0, double H1, doub
     acum.y() -= Fmenos2s->y();
     d_acumulador_2[pos_vol0] = acum;
 
-    d_acumulador_1[pos_vol1].y() += a0;
-    acum = d_acumulador_2[pos_vol1];
-    acum.x() -= Fmas2s->x();
-    acum.y() -= Fmas2s->y();
-    d_acumulador_2[pos_vol1] = acum;
+    if (pos_vol1 != -1) {
+        d_acumulador_1[pos_vol1].y() += a0;
+        acum = d_acumulador_2[pos_vol1];
+        acum.x() -= Fmas2s->x();
+        acum.y() -= Fmas2s->y();
+        d_acumulador_2[pos_vol1] = acum;
+    }
 }
 
 void procesarAristaVer_2s_waf_2step(TVec3 *W0m, TVec3 *W0, TVec3 *W1, TVec3 *W1p, double H0m,
@@ -649,7 +652,8 @@ void procesarAristaHor_2s_1step(double h0, double h1, double q0y, double longitu
 
     if (pos_vol0 >= 0)
         d_acumulador_1[pos_vol0].x() -= (*Fmenos2s)/cosPhi0;
-    d_acumulador_1[pos_vol1].x() += (*Fmenos2s)/cosPhi1;
+    if (pos_vol1 != -1)
+        d_acumulador_1[pos_vol1].x() += (*Fmenos2s)/cosPhi1;
 }
 
 void procesarAristaHor_2s_waf_1step(double h0m, double h0, double h1, double h1p, double q0y, double q1y,
@@ -801,11 +805,13 @@ void procesarAristaHor_2s_2step(TVec3 *W0, TVec3 *W1, double H0, double H1, doub
         d_acumulador_2[pos_vol0] = acum;
     }
 
-    d_acumulador_1[pos_vol1].y() += a0;
-    acum = d_acumulador_2[pos_vol1];
-    acum.x() -= Fmas2s->x();
-    acum.y() -= Fmas2s->y();
-    d_acumulador_2[pos_vol1] = acum;
+    if (pos_vol1 != -1) {
+        d_acumulador_1[pos_vol1].y() += a0;
+        acum = d_acumulador_2[pos_vol1];
+        acum.x() -= Fmas2s->x();
+        acum.y() -= Fmas2s->y();
+        d_acumulador_2[pos_vol1] = acum;
+    }
 }
 
 void procesarAristaHor_2s_waf_2step(TVec3 *W0m, TVec3 *W0, TVec3 *W1, TVec3 *W1p, double H0m,

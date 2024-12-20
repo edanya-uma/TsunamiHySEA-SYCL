@@ -673,8 +673,8 @@ int dc3d_(double *alpha, double *x, double *y,
 /* ----- REJECT SINGULAR CASE ----- */
 /* -------------------------------- */
 /* ----- ON FAULT EDGE */
-    if (q == f0 && (xi[0] * xi[1] <= f0 && et[0] * et[1] == f0 || et[0] * et[
-        1] <= f0 && xi[0] * xi[1] == f0)) {
+    if ((q == f0) && ((xi[0] * xi[1] <= f0 && et[0] * et[1] == f0) || (et[0] *
+        et[1] <= f0 && xi[0] * xi[1] == f0))) {
     *iret = 1;
     goto L99;
     }
@@ -753,8 +753,8 @@ L220:
 /* ----- REJECT SINGULAR CASE ----- */
 /* -------------------------------- */
 /* ----- ON FAULT EDGE */
-    if (q == f0 && (xi[0] * xi[1] <= f0 && et[0] * et[1] == f0 || et[0] * et[
-        1] <= f0 && xi[0] * xi[1] == f0)) {
+    if ((q == f0) && ((xi[0] * xi[1] <= f0 && et[0] * et[1] == f0) || (et[0] *
+        et[1] <= f0 && xi[0] * xi[1] == f0))) {
     *iret = 1;
     goto L99;
     }
