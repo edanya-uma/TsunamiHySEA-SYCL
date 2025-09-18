@@ -1,5 +1,5 @@
 /**********************************************************************
- Tsunami-HySEA numerical model open source v1.2.0
+ Tsunami-HySEA numerical model open source v1.3.0
  developed by the EDANYA Research Group, University of Malaga (Spain).
  Tsunami-HySEA SYCL version implemented by Intel Corporation engineers
  Matthias Kirchhart and Kazuki Minemura
@@ -9,7 +9,7 @@
  Distributed under GNU General Public License, Version 2
 **********************************************************************/
 
-#include <cstring>
+#include <string>
 #include "Constantes.hxx"
 #include "Problema.hxx"
 
@@ -24,7 +24,7 @@ int shallowWater(int numNiveles, int okada_flag, int numFaults, int crop_flag, d
 			double *LAT_C, double *DEPTH_C, double *FAULT_L, double *FAULT_W, double *STRIKE, double *DIP, double *RAKE,
 			double *SLIP, double *defTime, double2 *datosVolumenesNivel_1, double2 *datosVolumenesNivel_2, tipoDatosSubmalla datosNivel,
 			int leer_fichero_puntos, int numPuntosGuardar, int *posicionesVolumenesGuardado, double *lonPuntos, double *latPuntos,
-			int numVolxNivel0, int numVolyNivel0, int64_t numVolumenesNivel, double Hmin, char *nombre_bati, std::string prefijo,
+			int numVolxNivel0, int numVolyNivel0, int64_t numVolumenesNivel, double Hmin, char *nombre_bati, string prefijo,
 			double borde_sup, double borde_inf, double borde_izq, double borde_der, int tam_spongeSup, int tam_spongeInf,
 			int tam_spongeIzq, int tam_spongeDer, double tiempo_tot, double tiempoGuardarNetCDF, double tiempoGuardarSeries,
 			double CFL, double mf0, double vmax, double epsilon_h, double hpos, double cvis, double dif_at, double L, double H,
@@ -36,7 +36,7 @@ int shallowWater(int numNiveles, int okada_flag, int numFaults, int crop_flag, d
 
 int main(int argc, char *argv[])
 {
-	string version = "1.2.0";
+	string version = "1.3.0";
     double2 *datosVolumenesNivel_1;
     double2 *datosVolumenesNivel_2;
     tipoDatosSubmalla datosNivel;
@@ -99,10 +99,10 @@ int main(int argc, char *argv[])
 		cerr << "      Threshold value (m)" << std::endl;
         cerr << "  NetCDF file prefix" << std::endl;
         cerr << "  Number of levels (should be 1)" << std::endl;
-        cerr << "  Upper border condition (1: open, -1: wall)" << std::endl;
-        cerr << "  Lower border condition" << std::endl;
-        cerr << "  Left border condition" << std::endl;
-        cerr << "  Right border condition" << std::endl;
+		cerr << "  Upper border condition (1: open, -1: wall)" << std::endl;
+		cerr << "  Lower border condition (1: open, -1: wall)" << std::endl;
+		cerr << "  Left border condition (1: open, -1: wall, 2: periodic)" << std::endl;
+		cerr << "  Right border condition (1: open, -1: wall, 2: periodic)" << std::endl;
         cerr << "  Simulation time (sec)" << std::endl;
         cerr << "  Saving time of NetCDF files (sec) (-1: do not save)" << std::endl;
         cerr << "  Read points from file (0: no, 1: yes)" << std::endl;
@@ -142,24 +142,23 @@ int main(int argc, char *argv[])
         epsilon_h, hpos, cvis, dif_at, L, H, Q, T);
 
     cout << std::scientific;
-    err = shallowWater(numNiveles, okada_flag, numFaults, crop_flag, crop_value, LON_C, LAT_C, DEPTH_C, FAULT_L,
-            FAULT_W, STRIKE, DIP, RAKE, SLIP, defTime, datosVolumenesNivel_1, datosVolumenesNivel_2, datosNivel,
-            leer_fichero_puntos, numPuntosGuardar, posicionesVolumenesGuardado, lonPuntos, latPuntos, numVolxNivel0,
-            numVolyNivel0, numVolumenesNivel, Hmin, (char *) nombre_bati.c_str(), prefijo, borde_sup, borde_inf, borde_izq,
-            borde_der, tam_spongeSup, tam_spongeInf, tam_spongeIzq, tam_spongeDer, tiempo_tot, tiempoGuardarNetCDF,
-            tiempoGuardarSeries, CFL, mf0, vmax, epsilon_h, hpos, cvis, dif_at, L, H, Q, T, (char *) version.c_str(),
-            &tiempo_gpu);
+    err = shallowWater(numNiveles, okada_flag, numFaults, crop_flag, crop_value, LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W,
+            STRIKE, DIP, RAKE, SLIP, defTime, datosVolumenesNivel_1, datosVolumenesNivel_2, datosNivel, leer_fichero_puntos,
+            numPuntosGuardar, posicionesVolumenesGuardado, lonPuntos, latPuntos, numVolxNivel0, numVolyNivel0, numVolumenesNivel,
+            Hmin, const_cast<char *>(nombre_bati.c_str()), prefijo, borde_sup, borde_inf, borde_izq, borde_der, tam_spongeSup,
+            tam_spongeInf, tam_spongeIzq, tam_spongeDer, tiempo_tot, tiempoGuardarNetCDF, tiempoGuardarSeries, CFL, mf0,
+            vmax, epsilon_h, hpos, cvis, dif_at, L, H, Q, T, const_cast<char *>(version.c_str()), &tiempo_gpu);
     if (err > 0) {
         if (err == 1)
             cerr << "Error: Not enough GPU memory" << std::endl;
         else if (err == 2)
             cerr << "Error: Not enough CPU memory" << std::endl;
-        liberarMemoria(numNiveles, datosVolumenesNivel_1, datosVolumenesNivel_2, datosNivel,
+        liberarMemoria(datosVolumenesNivel_1, datosVolumenesNivel_2, datosNivel,
             posicionesVolumenesGuardado, lonPuntos, latPuntos);
         return EXIT_FAILURE;
     }
     cout << std::endl << "Runtime: " << tiempo_gpu << " sec" << std::endl;
-    liberarMemoria(numNiveles, datosVolumenesNivel_1, datosVolumenesNivel_2, datosNivel,
+    liberarMemoria(datosVolumenesNivel_1, datosVolumenesNivel_2, datosNivel,
         posicionesVolumenesGuardado, lonPuntos, latPuntos);
 
     return EXIT_SUCCESS;

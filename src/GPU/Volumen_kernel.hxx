@@ -1,5 +1,5 @@
-#ifndef _VOLUMEN_KERNEL_H_
-#define _VOLUMEN_KERNEL_H_
+#ifndef VOLUMEN_KERNEL_H
+#define VOLUMEN_KERNEL_H
 
 #include "Constantes.hxx"
 
@@ -27,10 +27,9 @@ void obtenerDeltaTVolumenesGPU(sycl::double2 *d_datosVolumenesNivel0_3,
 
 SYCL_EXTERNAL
 void obtenerEstadosPaso1Nivel0GPU(
-    sycl::double2 *d_datosVolumenes_1, sycl::double2 *d_datosVolumenes_2,
-    sycl::double2 *d_datosVolumenes_3, double *d_anchoVolumenes,
-    double *d_altoVolumenes, sycl::double2 *d_acumulador_1, int num_volx,
-    int num_voly, double delta_T, double Hmin, int tam_spongeSup,
+    sycl::double2 *d_datosVolumenes_1, sycl::double2 *d_datosVolumenes_3,
+    double *d_anchoVolumenes, double *d_altoVolumenes, sycl::double2 *d_acumulador_1,
+    int num_volx, int num_voly, double delta_T, double Hmin, int tam_spongeSup,
     int tam_spongeInf, int tam_spongeIzq, int tam_spongeDer, double sea_level,
     sycl::nd_item<2> item );
 

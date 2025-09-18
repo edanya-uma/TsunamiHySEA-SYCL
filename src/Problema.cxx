@@ -2,19 +2,13 @@
 #include <sys/stat.h> 
 #include <fstream>
 #include <sstream>
-#include <cstring>
-#include <limits.h>
+#include <string>
+#include <limits>
+#include "GPU/netcdfTH.hxx"
 
 using namespace std;
 using namespace sycl;
-
-// NetCDF external functions
-extern void abrirGRD(const char *nombre_fich, int *nvx, int *nvy);
-extern void leerLongitudGRD(double *lon);
-extern void leerLatitudGRD(double *lat);
-extern void leerBatimetriaGRD(float *bati);
-extern void leerEtaGRD(float *eta);
-extern void cerrarGRD();
+using namespace netcdfTH;
 
 bool existeFichero(string fichero) 
 {
@@ -23,30 +17,25 @@ bool existeFichero(string fichero)
 	int intStat;
 
 	intStat = stat(fichero.c_str(), &stFichInfo);
-	if (intStat == 0) {
-		existe = true;
-	}
-	else {
-		existe = false;
-	}
+	existe = (intStat == 0);
 
 	return existe;
 }
 
-void liberarMemoria(int numNiveles, double2 *datosVolumenesNivel_1, double2 *datosVolumenesNivel_2,
+void liberarMemoria(double2 *datosVolumenesNivel_1, double2 *datosVolumenesNivel_2,
 		tipoDatosSubmalla datosNivel, int *posicionesVolumenesGuardado, double *lonPuntos,
 		double *latPuntos)
 {
-	if (datosNivel.areaYCosPhi != NULL)			free(datosNivel.areaYCosPhi);
-	if (datosNivel.anchoVolumenes != NULL)		free(datosNivel.anchoVolumenes);
-	if (datosNivel.altoVolumenes != NULL)		free(datosNivel.altoVolumenes);
-	if (datosNivel.longitud != NULL)			free(datosNivel.longitud);
-	if (datosNivel.latitud != NULL)				free(datosNivel.latitud);
-	if (datosVolumenesNivel_1 != NULL)			free(datosVolumenesNivel_1);
-	if (datosVolumenesNivel_2 != NULL)			free(datosVolumenesNivel_2);
-	if (posicionesVolumenesGuardado != NULL)	free(posicionesVolumenesGuardado);
-	if (lonPuntos != NULL)						free(lonPuntos);
-	if (latPuntos != NULL)						free(latPuntos);
+	if (datosNivel.areaYCosPhi != nullptr)			free(datosNivel.areaYCosPhi);
+	if (datosNivel.anchoVolumenes != nullptr)		free(datosNivel.anchoVolumenes);
+	if (datosNivel.altoVolumenes != nullptr)		free(datosNivel.altoVolumenes);
+	if (datosNivel.longitud != nullptr) 			free(datosNivel.longitud);
+	if (datosNivel.latitud != nullptr)				free(datosNivel.latitud);
+	if (datosVolumenesNivel_1 != nullptr)			free(datosVolumenesNivel_1);
+	if (datosVolumenesNivel_2 != nullptr)			free(datosVolumenesNivel_2);
+	if (posicionesVolumenesGuardado != nullptr) 	free(posicionesVolumenesGuardado);
+	if (lonPuntos != nullptr)						free(lonPuntos);
+	if (latPuntos != nullptr)						free(latPuntos);
 }
 
 int obtenerPosEnPuntosGuardado(double *lonPuntos, double *latPuntos, int num_puntos, double lon, double lat)
@@ -294,6 +283,28 @@ int cargarDatosProblema(string fich_ent, string &nombre_bati, string &prefijo, i
 	obtenerSiguienteDato<double>(fich, *borde_inf);
 	obtenerSiguienteDato<double>(fich, *borde_izq);
 	obtenerSiguienteDato<double>(fich, *borde_der);
+	if (((fabs(*borde_sup-1.0) > EPSILON) && (fabs(*borde_sup-2.0) > EPSILON) && (fabs(*borde_sup+1.0) > EPSILON)) ||
+		((fabs(*borde_inf-1.0) > EPSILON) && (fabs(*borde_inf-2.0) > EPSILON) && (fabs(*borde_inf+1.0) > EPSILON)) ||
+		((fabs(*borde_izq-1.0) > EPSILON) && (fabs(*borde_izq-2.0) > EPSILON) && (fabs(*borde_izq+1.0) > EPSILON)) ||
+		((fabs(*borde_der-1.0) > EPSILON) && (fabs(*borde_der-2.0) > EPSILON) && (fabs(*borde_der+1.0) > EPSILON))) {
+		cerr << "Error: The boundary conditions should be -1, 1 or 2" << std::endl;
+		fich.close();
+		cerrarGRD();
+		return 1;
+	}
+	if ((fabs(*borde_sup-2.0) < EPSILON) || (fabs(*borde_inf-2.0) < EPSILON)) {
+		cerr << "Error: Periodic boundary conditions are only supported for left and right borders" << std::endl;
+		fich.close();
+		cerrarGRD();
+		return 1;
+	}
+	if ( ((fabs(*borde_izq-2.0) < EPSILON) && (fabs(*borde_der-2.0) > EPSILON)) ||
+		 ((fabs(*borde_izq-2.0) > EPSILON) && (fabs(*borde_der-2.0) < EPSILON)) ) {
+		cerr << "Error: Both left and right borders should have periodic boundary conditions" << std::endl;
+		fich.close();
+		cerrarGRD();
+		return 1;
+	}
 	obtenerSiguienteDato<double>(fich, *tiempo_tot);
 	obtenerSiguienteDato<double>(fich, *tiempoGuardarNetCDF);
 	obtenerSiguienteDato<int>(fich, *leer_fichero_puntos);
@@ -346,21 +357,21 @@ int cargarDatosProblema(string fich_ent, string &nombre_bati, string &prefijo, i
 		fich_ptos.close();
 	}
 
-	*numVolumenesNivel = (int64_t) ((*numVolxNivel0)*(*numVolyNivel0));
+	*numVolumenesNivel = static_cast<int64_t>((*numVolxNivel0)*(*numVolyNivel0));
 	tam = std::max(tam, *numVolumenesNivel);
 	tam_datosGRD = (*numVolumenesNivel)*sizeof(float);
-	datosGRD_float = (float *) malloc(tam_datosGRD);
-	datosGRD = (double *) datosGRD_float;
-	datosNivel->areaYCosPhi = (double2 *) malloc((*numVolyNivel0)*sizeof(double2));
-	datosNivel->anchoVolumenes = (double *) malloc(((*numVolyNivel0)+1)*sizeof(double));
-	datosNivel->altoVolumenes  = (double *) malloc((*numVolyNivel0)*sizeof(double));
-	datosNivel->longitud = (double *) malloc((*numVolxNivel0)*sizeof(double));
-	datosNivel->latitud  = (double *) malloc((*numVolyNivel0)*sizeof(double));
-	*datosVolumenesNivel_1 = (double2 *) malloc(tam*((int64_t) sizeof(double2)));
-	*datosVolumenesNivel_2 = (double2 *) malloc(tam*((int64_t) sizeof(double2)));
-	if (*datosVolumenesNivel_2 == NULL) {
+	datosGRD_float = static_cast<float *>(malloc(tam_datosGRD));
+	datosGRD = reinterpret_cast<double *>(datosGRD_float);
+	datosNivel->areaYCosPhi = static_cast<double2 *>(malloc((*numVolyNivel0)*sizeof(double2)));
+	datosNivel->anchoVolumenes = static_cast<double *>(malloc(((*numVolyNivel0)+1)*sizeof(double)));
+	datosNivel->altoVolumenes  = static_cast<double *>(malloc((*numVolyNivel0)*sizeof(double)));
+	datosNivel->longitud = static_cast<double *>(malloc((*numVolxNivel0)*sizeof(double)));
+	datosNivel->latitud  = static_cast<double *>(malloc((*numVolyNivel0)*sizeof(double)));
+	*datosVolumenesNivel_1 = static_cast<double2 *>(malloc(tam*(static_cast<int64_t>(sizeof(double2)))));
+	*datosVolumenesNivel_2 = static_cast<double2 *>(malloc(tam*(static_cast<int64_t>(sizeof(double2)))));
+	if (*datosVolumenesNivel_2 == nullptr) {
 		cerr << "Error: Not enough CPU memory" << std::endl;
-		liberarMemoria(*numNiveles, *datosVolumenesNivel_1, *datosVolumenesNivel_2, *datosNivel,
+		liberarMemoria(*datosVolumenesNivel_1, *datosVolumenesNivel_2, *datosNivel,
 			*posicionesVolumenesGuardado, *lonPuntos, *latPuntos);
 		free(datosGRD);
 		cerrarGRD();
@@ -392,12 +403,12 @@ int cargarDatosProblema(string fich_ent, string &nombre_bati, string &prefijo, i
 	if (*leer_fichero_puntos == 1) {
 		fich_ptos.open((directorio+fich_puntos).c_str());
 		fich_ptos >> j;
-		*lonPuntos = (double *) malloc(j*sizeof(double));
-		*latPuntos = (double *) malloc(j*sizeof(double));
-		*posicionesVolumenesGuardado = (int *) malloc(j*sizeof(int));
-		if (*posicionesVolumenesGuardado == NULL) {
+		*lonPuntos = static_cast<double *>(malloc(j*sizeof(double)));
+		*latPuntos = static_cast<double *>(malloc(j*sizeof(double)));
+		*posicionesVolumenesGuardado = static_cast<int *>(malloc(j*sizeof(int)));
+		if (*posicionesVolumenesGuardado == nullptr) {
 			cerr << "Error: Not enough CPU memory" << std::endl;
-			liberarMemoria(*numNiveles, *datosVolumenesNivel_1, *datosVolumenesNivel_2, *datosNivel,
+			liberarMemoria(*datosVolumenesNivel_1, *datosVolumenesNivel_2, *datosNivel,
 				*posicionesVolumenesGuardado, *lonPuntos, *latPuntos);
 			free(datosGRD);
 			fich_ptos.close();
@@ -453,7 +464,7 @@ int cargarDatosProblema(string fich_ent, string &nombre_bati, string &prefijo, i
 		for (j=(*numVolyNivel0)-1; j>=0; j--) {
 			for (i=0; i<(*numVolxNivel0); i++) {
 				pos = j*(*numVolxNivel0) + i;
-				val = (double) datosGRD_float[pos];
+				val = static_cast<double>(datosGRD_float[pos]);
 				val = val/(*H) + (*datosVolumenesNivel_1)[pos].y() + (*Hmin);
 				val = std::max(val, 0.0);                                
 				(*datosVolumenesNivel_1)[pos].x() = val;
@@ -510,7 +521,7 @@ void mostrarDatosProblema(string version, int numNiveles, int okada_flag, int nu
 	cout << "Threshold for the arrival times: " << dif_at*H << " m" << std::endl;
 	cout << "Simulation time: " << tiempo_tot*T << " sec" << std::endl;
 	cout << "Saving time of NetCDF files: " << tiempoGuardarNetCDF*T << " sec" << std::endl;
-	if (leer_fichero_puntos) {
+	if (leer_fichero_puntos == 1) {
 		cout << "Time series: yes (saving time: " << tiempoGuardarSeries*T << " sec)" << std::endl;
 	}
 	else {

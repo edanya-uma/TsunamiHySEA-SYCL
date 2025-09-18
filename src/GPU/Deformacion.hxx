@@ -1,5 +1,5 @@
-#ifndef _DEFORMACION_H_
-#define _DEFORMACION_H_
+#ifndef DEFORMACION_H
+#define DEFORMACION_H
 
 #include <sycl/sycl.hpp>
 

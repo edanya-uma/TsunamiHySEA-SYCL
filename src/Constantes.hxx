@@ -1,15 +1,12 @@
-#ifndef _CONSTANTES_H_
-#define _CONSTANTES_H_
+#ifndef CONSTANTES_H
+#define CONSTANTES_H
 
 #include <limits>
 #include <sycl/sycl.hpp>
 
-using TVec2 = sycl::double2;
-using TVec3 = sycl::double3;
-
 using size_t = std::size_t;
 
-constexpr double EPSILON               { std::numeric_limits<double>::epsilon()*10 };
+constexpr double EPSILON               { std::numeric_limits<double>::epsilon() };
 constexpr double EARTH_RADIUS          { 6378136.6 };
 constexpr int    MAX_FAULTS            { 5000 };
 constexpr size_t SPONGE_SIZE           { 4 };
@@ -35,14 +32,13 @@ constexpr size_t iDivUp( size_t a, size_t b )
     return 1 + (a-1)/b;
 }
 
-
-typedef struct {
-    sycl::double2 *areaYCosPhi;
-    double *anchoVolumenes;
-    double *altoVolumenes;
-    double *longitud;
-    double *latitud;
-} tipoDatosSubmalla;
+using tipoDatosSubmalla = struct {
+	sycl::double2 *areaYCosPhi;
+	double *anchoVolumenes;
+	double *altoVolumenes;
+	double *longitud;
+	double *latitud;
+};
 
 #endif
 

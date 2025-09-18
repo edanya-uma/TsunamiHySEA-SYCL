@@ -107,8 +107,7 @@ void obtenerDeltaTVolumenesGPU( double2 *d_datosVolumenesNivel0_3,
 }
 
 void obtenerEstadosPaso1Nivel0GPU(
-    double2 *d_datosVolumenes_1, sycl::double2 *d_datosVolumenes_2,
-    double2 *d_datosVolumenes_3, double *d_anchoVolumenes,
+    double2 *d_datosVolumenes_1, double2 *d_datosVolumenes_3, double *d_anchoVolumenes,
     double *d_altoVolumenes, double2 *d_acumulador_1, int num_volx,
     int num_voly, double delta_T, double Hmin, int tam_spongeSup,
     int tam_spongeInf, int tam_spongeIzq, int tam_spongeDer, double sea_level,

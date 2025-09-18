@@ -1,5 +1,5 @@
-#ifndef _PRTOXY_H
-#define _PRTOXY_H
+#ifndef PRTOXY_H
+#define PRTOXY_H
 
 #include <sycl/sycl.hpp>
 

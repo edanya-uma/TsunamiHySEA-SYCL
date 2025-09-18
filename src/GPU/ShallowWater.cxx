@@ -1,9 +1,8 @@
-#include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
-#include <cstring>
-#include <fstream>
+#include <cstdlib>
+#include <cmath>
 #include <string>
+#include <fstream>
 #include <sycl/sycl.hpp>
 #include "stopwatch.hxx"
 #include "Volumen_kernel.hxx"
@@ -11,9 +10,9 @@
 #include "Deformacion.hxx"
 #include "Metrics.hxx"
 #include "netcdf_kernel.hxx"
-#include "netcdf.hxx"
-#include "netcdfSeries.hxx"
+#include "netcdfTH.hxx"
 
+using namespace netcdfTH;
 using namespace sycl;
 
 /*****************/
@@ -75,7 +74,7 @@ void obtenerBatimetriaParaSerieTiempos(double2 *datosVolumenesNivel_1, int numPu
 
     for (i=0; i<numPuntosGuardar; i++) {
         if (posicionesVolumenesGuardado[i] != -1)
-            profPuntosGuardado[i] = (float) ((datosVolumenesNivel_1[i].y() + Hmin)*H);
+            profPuntosGuardado[i] = static_cast<float>((datosVolumenesNivel_1[i].y() + Hmin)*H);
     }
 }
 
@@ -92,9 +91,9 @@ void guardarSerieTiemposNivel0(double2 *datosVolumenesNivel_1, double2 *datosVol
     for (i=0; i<numPuntosGuardar; i++) {
         if (posicionesVolumenesGuardado[i] != -1) {
             h = datosVolumenesNivel_1[i].x();
-            etaPuntosGuardado[i] = (float) ((h - datosVolumenesNivel_1[i].y() - Hmin)*H);
-            uPuntosGuardado[i] = (float) (datosVolumenesNivel_2[i].x()*Q/H);
-            vPuntosGuardado[i] = (float) (datosVolumenesNivel_2[i].y()*Q/H);
+            etaPuntosGuardado[i] = static_cast<float>((h - datosVolumenesNivel_1[i].y() - Hmin)*H);
+            uPuntosGuardado[i] = static_cast<float>(datosVolumenesNivel_2[i].x()*Q/H);
+            vPuntosGuardado[i] = static_cast<float>(datosVolumenesNivel_2[i].y()*Q/H);
             etaMinPuntosGuardado[i] = min(etaPuntosGuardado[i], etaMinPuntosGuardado[i]);
             etaMaxPuntosGuardado[i] = max(etaPuntosGuardado[i], etaMaxPuntosGuardado[i]);
         }
@@ -203,9 +202,9 @@ void liberarMemoria(queue &q, int numNiveles, double2 *d_datosVolumenesNivel_1, 
 
 double obtenerDeltaTInicialNivel0(queue &q, double2 *d_datosVolumenesNivel0_1, double2 *d_datosVolumenesNivel0_2,
         tipoDatosSubmalla d_datosNivel0, double *d_deltaTVolumenesNivel0, double2 *d_acumulador_1, int numVolxNivel0,
-        int numVolyNivel0, double borde_izq, double borde_der, double borde_sup, double borde_inf, double CFL,
-        double epsilon_h, range<2> blockGridVer1, range<2> blockGridVer2, range<2> blockGridHor1, range<2> blockGridHor2,
-        range<2> threadBlockAri, range<2> blockGridEst, range<2> threadBlockEst)
+        int numVolyNivel0, double borde_izq, double borde_der, double borde_sup, double borde_inf, bool es_periodica,
+        double CFL, double epsilon_h, range<2> blockGridVer1, range<2> blockGridVer2, range<2> blockGridHor1,
+        range<2> blockGridHor2, range<2> threadBlockAri, range<2> blockGridEst, range<2> threadBlockEst)
 {
     event  ev;
     nd_range<2> Krange { blockGridVer1, threadBlockAri }; // Kernel range
@@ -214,16 +213,16 @@ double obtenerDeltaTInicialNivel0(queue &q, double2 *d_datosVolumenesNivel0_1, d
     ev = q.parallel_for( Krange, [=]( nd_item<2> idx )
     {
         procesarAristasVerDeltaTInicialNivel0GPU( idx, d_datosVolumenesNivel0_1, d_datosVolumenesNivel0_2,
-        d_datosNivel0.areaYCosPhi, numVolxNivel0, numVolyNivel0, borde_izq, borde_der, d_datosNivel0.altoVolumenes,
-        d_acumulador_1, epsilon_h, 1);
+        d_datosNivel0.areaYCosPhi, numVolxNivel0, numVolyNivel0, borde_izq, borde_der, es_periodica,
+        d_datosNivel0.altoVolumenes, d_acumulador_1, epsilon_h, 1);
     });
 
     Krange = nd_range<2> { blockGridVer2*threadBlockAri, threadBlockAri };
     ev = q.parallel_for( Krange, ev, [=]( nd_item<2> idx )
     {
         procesarAristasVerDeltaTInicialNivel0GPU( idx, d_datosVolumenesNivel0_1, d_datosVolumenesNivel0_2,
-        d_datosNivel0.areaYCosPhi, numVolxNivel0, numVolyNivel0, borde_izq, borde_der, d_datosNivel0.altoVolumenes,
-        d_acumulador_1, epsilon_h, 2);
+        d_datosNivel0.areaYCosPhi, numVolxNivel0, numVolyNivel0, borde_izq, borde_der, es_periodica,
+        d_datosNivel0.altoVolumenes, d_acumulador_1, epsilon_h, 2);
     });
 
     Krange = nd_range<2> { blockGridHor1*threadBlockAri, threadBlockAri };
@@ -305,11 +304,11 @@ void truncarDeltaTNivel0ParaSigDeformacionSaltando(int okada_flag, int numFaults
 double siguientePasoNivel0(queue &q, event ev, double2 *d_datosVolumenesNivel0_1, double2 *d_datosVolumenesNivel0_2,
         tipoDatosSubmalla d_datosNivel0, double2 *d_acumuladorNivel_1, double2 *d_acumuladorNivel_2, int numVolxNivel0,
         int numVolyNivel0, double *d_deltaTVolumenesNivel0, double borde_sup, double borde_inf, double borde_izq,
-        double borde_der, double Hmin, int tam_spongeSup, int tam_spongeInf, int tam_spongeIzq, int tam_spongeDer,
-        double sea_level, double *tiempo_act, double CFL, double delta_T, double mf0, double vmax, double epsilon_h,
-        double hpos, double cvis, double L, double H, int64_t tam_datosVolDouble2Nivel0, range<2> blockGridVer1,
-        range<2> blockGridVer2, range<2> blockGridHor1, range<2> blockGridHor2, range<2> threadBlockAri,
-        range<2> blockGridEst, range<2> threadBlockEst)
+        double borde_der, bool es_periodica, double Hmin, int tam_spongeSup, int tam_spongeInf, int tam_spongeIzq,
+        int tam_spongeDer, double sea_level, double *tiempo_act, double CFL, double delta_T, double mf0, double vmax,
+        double epsilon_h, double hpos, double cvis, double L, double H, int64_t tam_datosVolDouble2Nivel0,
+        range<2> blockGridVer1, range<2> blockGridVer2, range<2> blockGridHor1, range<2> blockGridHor2,
+        range<2> threadBlockAri, range<2> blockGridEst, range<2> threadBlockEst)
 {
     // PASO 1
     nd_range<2> Krange { blockGridVer1*threadBlockAri, threadBlockAri }; // Kernel range
@@ -318,40 +317,40 @@ double siguientePasoNivel0(queue &q, event ev, double2 *d_datosVolumenesNivel0_1
     ev = q.parallel_for<class siguiente1>( Krange, ev, [=]( nd_item<2> idx )
     {
         procesarAristasVerNivel0Paso1GPU(idx,d_datosVolumenesNivel0_1, d_datosVolumenesNivel0_2,
-        d_datosNivel0.areaYCosPhi, d_datosNivel0.altoVolumenes, numVolxNivel0, numVolyNivel0, borde_izq, borde_der, delta_T,
-        d_acumuladorNivel_1, CFL, epsilon_h, hpos, cvis, 1);
+        d_datosNivel0.areaYCosPhi, d_datosNivel0.altoVolumenes, numVolxNivel0, numVolyNivel0, borde_izq, borde_der,
+        es_periodica, delta_T, d_acumuladorNivel_1, CFL, epsilon_h, hpos, cvis, 1);
     });
 
     Krange = nd_range { blockGridVer2*threadBlockAri, threadBlockAri };
     ev = q.parallel_for<class siguiente2>( Krange, ev, [=]( nd_item<2> idx )
     {
         procesarAristasVerNivel0Paso1GPU(idx,d_datosVolumenesNivel0_1, d_datosVolumenesNivel0_2,
-        d_datosNivel0.areaYCosPhi, d_datosNivel0.altoVolumenes, numVolxNivel0, numVolyNivel0, borde_izq, borde_der, delta_T,
-        d_acumuladorNivel_1, CFL, epsilon_h, hpos, cvis, 2);
+        d_datosNivel0.areaYCosPhi, d_datosNivel0.altoVolumenes, numVolxNivel0, numVolyNivel0, borde_izq, borde_der,
+        es_periodica, delta_T, d_acumuladorNivel_1, CFL, epsilon_h, hpos, cvis, 2);
     });
 
     Krange = nd_range { blockGridHor1*threadBlockAri, threadBlockAri };
     ev = q.parallel_for<class siguiente3>( Krange, ev, [=]( nd_item<2> idx )
     {
         procesarAristasHorNivel0Paso1GPU( idx, d_datosVolumenesNivel0_1, d_datosVolumenesNivel0_2,
-        d_datosNivel0.areaYCosPhi, d_datosNivel0.anchoVolumenes, numVolxNivel0, numVolyNivel0, borde_sup, borde_inf, delta_T,
-        d_acumuladorNivel_1, CFL, epsilon_h, hpos, cvis, 1);
+        d_datosNivel0.areaYCosPhi, d_datosNivel0.anchoVolumenes, numVolxNivel0, numVolyNivel0, borde_sup, borde_inf,
+        delta_T, d_acumuladorNivel_1, CFL, epsilon_h, hpos, cvis, 1);
     });
 
     Krange = nd_range { blockGridHor2*threadBlockAri, threadBlockAri };
     ev = q.parallel_for<class siguiente4>( Krange, ev, [=]( nd_item<2> idx )
     {
         procesarAristasHorNivel0Paso1GPU( idx, d_datosVolumenesNivel0_1, d_datosVolumenesNivel0_2,
-        d_datosNivel0.areaYCosPhi, d_datosNivel0.anchoVolumenes, numVolxNivel0, numVolyNivel0, borde_sup, borde_inf, delta_T,
-        d_acumuladorNivel_1, CFL, epsilon_h, hpos, cvis, 2);
+        d_datosNivel0.areaYCosPhi, d_datosNivel0.anchoVolumenes, numVolxNivel0, numVolyNivel0, borde_sup, borde_inf,
+        delta_T, d_acumuladorNivel_1, CFL, epsilon_h, hpos, cvis, 2);
     });
 
     Krange = nd_range { blockGridEst*threadBlockAri, threadBlockEst };
     ev = q.parallel_for<class siguiente5>( Krange, ev, [=]( nd_item<2> idx )
     {
-        obtenerEstadosPaso1Nivel0GPU(d_datosVolumenesNivel0_1, d_datosVolumenesNivel0_2,
-        d_datosNivel0.areaYCosPhi, d_datosNivel0.anchoVolumenes, d_datosNivel0.altoVolumenes, d_acumuladorNivel_1,
-        numVolxNivel0, numVolyNivel0, delta_T, Hmin, tam_spongeSup, tam_spongeInf, tam_spongeIzq, tam_spongeDer, sea_level, idx);
+        obtenerEstadosPaso1Nivel0GPU(d_datosVolumenesNivel0_1, d_datosNivel0.areaYCosPhi, d_datosNivel0.anchoVolumenes,
+        d_datosNivel0.altoVolumenes, d_acumuladorNivel_1, numVolxNivel0, numVolyNivel0, delta_T, Hmin, tam_spongeSup,
+        tam_spongeInf, tam_spongeIzq, tam_spongeDer, sea_level, idx);
     });
 
     ev = q.memset(d_acumuladorNivel_1, 0, tam_datosVolDouble2Nivel0, ev);
@@ -362,7 +361,7 @@ double siguientePasoNivel0(queue &q, event ev, double2 *d_datosVolumenesNivel0_1
     {
         procesarAristasVerNivel0Paso2GPU(idx,d_datosVolumenesNivel0_1, d_datosVolumenesNivel0_2,
         d_datosNivel0.areaYCosPhi, d_datosNivel0.altoVolumenes, numVolxNivel0, numVolyNivel0, borde_izq, borde_der,
-        delta_T, d_acumuladorNivel_1, d_acumuladorNivel_2, CFL, epsilon_h, hpos, cvis, 1);
+        es_periodica, delta_T, d_acumuladorNivel_1, d_acumuladorNivel_2, CFL, epsilon_h, hpos, cvis, 1);
     });
 
     Krange = nd_range { blockGridVer2*threadBlockAri, threadBlockAri };
@@ -370,7 +369,7 @@ double siguientePasoNivel0(queue &q, event ev, double2 *d_datosVolumenesNivel0_1
     {
         procesarAristasVerNivel0Paso2GPU(idx, d_datosVolumenesNivel0_1, d_datosVolumenesNivel0_2,
         d_datosNivel0.areaYCosPhi, d_datosNivel0.altoVolumenes, numVolxNivel0, numVolyNivel0, borde_izq, borde_der,
-        delta_T, d_acumuladorNivel_1, d_acumuladorNivel_2, CFL, epsilon_h, hpos, cvis, 2);
+        es_periodica, delta_T, d_acumuladorNivel_1, d_acumuladorNivel_2, CFL, epsilon_h, hpos, cvis, 2);
     });
 
     Krange = nd_range { blockGridHor1*threadBlockAri, threadBlockAri };
@@ -461,6 +460,7 @@ int shallowWater(int numNiveles, int okada_flag, int numFaults, int crop_flag, d
     double lat_ini = datosNivel.latitud[0];
     double incx = (datosNivel.longitud[numVolxNivel0-1] - datosNivel.longitud[0])/(numVolxNivel0-1);
     double incy = (datosNivel.latitud[numVolyNivel0-1] - datosNivel.latitud[0])/(numVolyNivel0-1);
+	bool es_periodica = (((fabs(borde_izq-2.0) < EPSILON) && (fabs(borde_der-2.0) < EPSILON)) ? true : false);
     double t;
 
     int *d_posicionesVolumenesGuardado;
@@ -589,20 +589,20 @@ int shallowWater(int numNiveles, int okada_flag, int numFaults, int crop_flag, d
     // INICIO NETCDF
     double mf0_ini = sqrt(mf0*pow(H,4.0/3.0)/(9.81*L));
     if (tiempoGuardarNetCDF >= 0.0) {
-        vec = (float *) malloc(tam_datosVolFloatNivel);
-        if (vec == NULL) {
+        vec = static_cast<float *>(malloc(tam_datosVolFloatNivel));
+        if (vec == nullptr) {
             liberarMemoria(q,numNiveles, d_datosVolumenesNivel_1, d_datosVolumenesNivel_2, d_datosNivel, d_eta1MaximaNivel,
                 d_eta1InicialNivel, d_tiemposLlegadaNivel, d_deltaTVolumenesNivel, d_acumuladorNivel_1, d_acumuladorNivel_2,
                 leer_fichero_puntos, d_posicionesVolumenesGuardado, d_datosVolumenesGuardado_1, d_datosVolumenesGuardado_2, d_vec);
             return 2;
         }
-        for (i=0; i<numVolumenesNivel; i++)
-            vec[i] = (float) ((datosVolumenesNivel_1[i].y() + Hmin)*H);
-        iter = crearFicherosNC(nombre_bati, okada_flag, (char *) prefijo.c_str(), numVolxNivel0, numVolyNivel0,
-                    datosNivel.longitud, datosNivel.latitud, tiempo_tot*T, CFL, epsilon_h*H, mf0_ini, vmax*Q/H,
-                    hpos*H, 1.0-cvis, dif_at*H, borde_sup, borde_inf, borde_izq, borde_der, numFaults, defTime,
-                    LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP, crop_flag, crop_value,
-                    H, vec, version);
+        for (i=0; i<numVolumenesNivel; i++) {
+            vec[i] = static_cast<float>((datosVolumenesNivel_1[i].y() + Hmin)*H);
+		}
+        iter = crearFicherosNC(nombre_bati, okada_flag, const_cast<char *>((prefijo+".nc").c_str()), numVolxNivel0, numVolyNivel0,
+                    datosNivel.longitud, datosNivel.latitud, tiempo_tot*T, CFL, epsilon_h*H, mf0_ini, vmax*Q/H, hpos*H, 1.0-cvis,
+                    dif_at*H, borde_sup, borde_inf, borde_izq, borde_der, es_periodica, numFaults, defTime, LON_C, LAT_C, DEPTH_C,
+                    FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP, crop_flag, crop_value, H, vec, version);
         if (iter == 1) {
             liberarMemoria(q,numNiveles, d_datosVolumenesNivel_1, d_datosVolumenesNivel_2, d_datosNivel, d_eta1MaximaNivel,
                 d_eta1InicialNivel, d_tiemposLlegadaNivel, d_deltaTVolumenesNivel, d_acumuladorNivel_1, d_acumuladorNivel_2,
@@ -612,16 +612,16 @@ int shallowWater(int numNiveles, int okada_flag, int numFaults, int crop_flag, d
         }
     }
     if (leer_fichero_puntos == 1) {
-        etaPuntosGuardado = (float *) malloc(numPuntosGuardar*sizeof(float));
-        uPuntosGuardado = (float *) malloc(numPuntosGuardar*sizeof(float));
-        vPuntosGuardado = (float *) malloc(numPuntosGuardar*sizeof(float));
-        etaMinPuntosGuardado = (float *) malloc(numPuntosGuardar*sizeof(float));
-        etaMaxPuntosGuardado = (float *) malloc(numPuntosGuardar*sizeof(float));
-        if (etaMaxPuntosGuardado == NULL) {
-            if (etaPuntosGuardado != NULL)          free(etaPuntosGuardado);
-            if (uPuntosGuardado != NULL)            free(uPuntosGuardado);
-            if (vPuntosGuardado != NULL)            free(vPuntosGuardado);
-            if (etaMinPuntosGuardado != NULL)       free(etaMinPuntosGuardado);
+        etaPuntosGuardado = static_cast<float *>(malloc(numPuntosGuardar*sizeof(float)));
+        uPuntosGuardado = static_cast<float *>(malloc(numPuntosGuardar*sizeof(float)));
+        vPuntosGuardado = static_cast<float *>(malloc(numPuntosGuardar*sizeof(float)));
+        etaMinPuntosGuardado = static_cast<float *>(malloc(numPuntosGuardar*sizeof(float)));
+        etaMaxPuntosGuardado = static_cast<float *>(malloc(numPuntosGuardar*sizeof(float)));
+        if (etaMaxPuntosGuardado == nullptr) {
+            if (etaPuntosGuardado != nullptr)          free(etaPuntosGuardado);
+            if (uPuntosGuardado != nullptr)            free(uPuntosGuardado);
+            if (vPuntosGuardado != nullptr)            free(vPuntosGuardado);
+            if (etaMinPuntosGuardado != nullptr)       free(etaMinPuntosGuardado);
             if (tiempoGuardarNetCDF >= 0.0)
                 free(vec);
             liberarMemoria(q,numNiveles, d_datosVolumenesNivel_1, d_datosVolumenesNivel_2, d_datosNivel, d_eta1MaximaNivel,
@@ -629,10 +629,10 @@ int shallowWater(int numNiveles, int okada_flag, int numFaults, int crop_flag, d
                 leer_fichero_puntos, d_posicionesVolumenesGuardado, d_datosVolumenesGuardado_1, d_datosVolumenesGuardado_2, d_vec);
             return 2;
         }
-        initTimeSeriesNC(nombre_bati, (char *) prefijo.c_str(), numPuntosGuardar, lonPuntos, latPuntos, tiempo_tot*T,
-            CFL, epsilon_h*H, mf0_ini, vmax*Q/H, hpos*H, 1.0-cvis, dif_at*H, borde_sup, borde_inf, borde_izq, borde_der,
-            numFaults, defTime, LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP, okada_flag, crop_flag,
-            crop_value, H, version);
+        initTimeSeriesNC(nombre_bati, const_cast<char *>((prefijo+"_ts.nc").c_str()), numPuntosGuardar, lonPuntos, latPuntos,
+            tiempo_tot*T, CFL, epsilon_h*H, mf0_ini, vmax*Q/H, hpos*H, 1.0-cvis, dif_at*H, borde_sup, borde_inf, borde_izq,
+            borde_der, es_periodica, numFaults, defTime, LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP,
+            okada_flag, crop_flag, crop_value, H, version);
         for (i=0; i<numPuntosGuardar; i++) {
             if (posicionesVolumenesGuardado[i] == -1) {
                 etaPuntosGuardado[i] = -9999.0f;
@@ -656,8 +656,8 @@ int shallowWater(int numNiveles, int okada_flag, int numFaults, int crop_flag, d
     stopwatch<double> timer;
     // Note: d_datosNivel needs to be passed by value.
     deltaTNivel = obtenerDeltaTInicialNivel0(q, d_datosVolumenesNivel_1, d_datosVolumenesNivel_2, d_datosNivel,
-                    d_deltaTVolumenesNivel, d_acumuladorNivel_1, numVolxNivel0, numVolyNivel0, borde_izq,
-                    borde_der, borde_sup, borde_inf, CFL, epsilon_h, blockGridVer1Nivel, blockGridVer2Nivel,
+                    d_deltaTVolumenesNivel, d_acumuladorNivel_1, numVolxNivel0, numVolyNivel0, borde_izq, borde_der,
+                    borde_sup, borde_inf, es_periodica, CFL, epsilon_h, blockGridVer1Nivel, blockGridVer2Nivel,
                     blockGridHor1Nivel, blockGridHor2Nivel, threadBlockAri, blockGridEstNivel, threadBlockEst);
 	if (numFaults > 0) {
 		if (defTime[0] < EPSILON) {
@@ -727,9 +727,10 @@ int shallowWater(int numNiveles, int okada_flag, int numFaults, int crop_flag, d
         // d_datosNivel needs to be passed by value.
         deltaTNivel = siguientePasoNivel0(q, ev, d_datosVolumenesNivel_1, d_datosVolumenesNivel_2, d_datosNivel, d_acumuladorNivel_1,
                         d_acumuladorNivel_2, numVolxNivel0, numVolyNivel0, d_deltaTVolumenesNivel, borde_sup, borde_inf, borde_izq,
-                        borde_der, Hmin, tam_spongeSup, tam_spongeInf, tam_spongeIzq, tam_spongeDer, sea_level, &tiempoActSubmalla,
-                        CFL, deltaTNivel, mf0, vmax, epsilon_h, hpos, cvis, L, H, tam_datosVolDouble2Nivel, blockGridVer1Nivel,
-                        blockGridVer2Nivel, blockGridHor1Nivel, blockGridHor2Nivel, threadBlockAri, blockGridEstNivel, threadBlockEst);
+                        borde_der, es_periodica, Hmin, tam_spongeSup, tam_spongeInf, tam_spongeIzq, tam_spongeDer, sea_level,
+                        &tiempoActSubmalla, CFL, deltaTNivel, mf0, vmax, epsilon_h, hpos, cvis, L, H, tam_datosVolDouble2Nivel,
+                        blockGridVer1Nivel, blockGridVer2Nivel, blockGridHor1Nivel, blockGridHor2Nivel, threadBlockAri,
+                        blockGridEstNivel, threadBlockEst);
 
 		if (! saltar_deformacion) {
 			truncarDeltaTNivel0ParaSigDeformacion(okada_flag, numFaults, fallaOkada, tiempoActSubmalla, defTime,

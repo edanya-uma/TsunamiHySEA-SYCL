@@ -14,7 +14,7 @@ void convertirAMenosValorAbsolutoGPU(double *d_in, float *d_out, int n, nd_item<
 	int pos = item.get_group(0) * NUM_HEBRAS_PUNTOS + item.get_local_id(0);
 
 	if (pos < n) {
-		d_out[pos] = (float) (-fabs(d_in[pos]));
+		d_out[pos] = static_cast<float>(-fabs(d_in[pos]));
 	}
 }
 
@@ -153,7 +153,7 @@ void aplicarOkada(queue &q, event &ev, double2 *d_datosVolumenes_1, double *d_et
 			});
 		});
 		def_max = -(minBuf.get_host_access()[0]);
-		crop_value_final = crop_value*((double) def_max);
+		crop_value_final = crop_value*(static_cast<double>(def_max));
 
 		Krange = nd_range<2> { blockGridEst*threadBlockEst, threadBlockEst };
 		ev = q.parallel_for<class truncar_def_rel>( Krange, ev, [=]( nd_item<2> idx )

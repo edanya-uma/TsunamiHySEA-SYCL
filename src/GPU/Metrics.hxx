@@ -1,5 +1,5 @@
-#ifndef _METRICS_H_
-#define _METRICS_H_
+#ifndef METRICS_H
+#define METRICS_H
 
 #include "Constantes.hxx"
 

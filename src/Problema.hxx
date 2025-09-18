@@ -13,7 +13,7 @@ extern template void obtenerSiguienteDato<double>(std::ifstream &fich, double &d
 extern template void obtenerSiguienteDato<std::string>(std::ifstream &fich, std::string &dato);
 
 bool existeFichero(std::string fichero);
-void liberarMemoria(int numNiveles, sycl::double2 *datosVolumenesNivel_1, sycl::double2 *datosVolumenesNivel_2,
+void liberarMemoria(sycl::double2 *datosVolumenesNivel_1, sycl::double2 *datosVolumenesNivel_2,
 		tipoDatosSubmalla datosNivel, int *posicionesVolumenesGuardado, double *lonPuntos, double *latPuntos);
 
 int obtenerPosEnPuntosGuardado(double *lonPuntos, double *latPuntos, int num_puntos, double lon, double lat);
